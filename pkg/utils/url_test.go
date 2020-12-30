@@ -13,6 +13,7 @@ func TestURL(t *testing.T) {
 		"nginx:v1",
 		"127.0.0.1:300/library/nginx:v1",
 		"127.0.0.1:300/library/nginx",
+		"k8s.gcr.io/kube-apiserver",
 	}
 
 	var repoURLs []*RepoURL
@@ -41,4 +42,7 @@ func TestURL(t *testing.T) {
 	assert.Equal(t, "127.0.0.1:300/library/nginx", repoURLs[4].GetURLWithoutTag())
 	assert.Equal(t, "127.0.0.1:300", repoURLs[4].GetRegistry())
 	assert.Equal(t, "nginx", repoURLs[4].GetRepoWithTag())
+	assert.Equal(t, "k8s.gcr.io/kube-apiserver", repoURLs[5].GetURLWithoutTag())
+	assert.Equal(t, "k8s.gcr.io", repoURLs[5].GetRegistry())
+	assert.Equal(t, "kube-apiserver", repoURLs[5].GetRepoWithTag())
 }

@@ -179,3 +179,8 @@ func (t *Task) Errorf(format string, args ...interface{}) error {
 func (t *Task) Infof(format string, args ...interface{}) {
 	t.logger.Infof(format, args...)
 }
+
+// Debugf logs info to logger
+func (t *Task) Debugf(format string, args ...interface{}) {
+	t.logger.Debugf(format, args...)
+}

@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"time"
 
 	"github.com/AliyunContainerService/image-syncer/pkg/utils"
 	"github.com/containers/image/v5/docker"
@@ -137,6 +138,10 @@ func (i *ImageSource) GetTag() string {
 }
 
 // GetSourceRepoTags gets all the tags of a repository which ImageSource belongs to
-func (i *ImageSource) GetSourceRepoTags() ([]string, error) {
-	return docker.GetRepositoryTags(i.ctx, i.sysctx, i.ref)
+func (i *ImageSource) GetSourceRepoTags(dateFilter *time.Time) ([]string, error) {
+	if dateFilter == nil {
+		return docker.GetRepositoryTags(i.ctx, i.sysctx, i.ref)
+	} else {
+		return docker.GetRepositoryTagsAfterDate(i.ctx, i.sysctx, i.ref, *dateFilter)
+	}
 }

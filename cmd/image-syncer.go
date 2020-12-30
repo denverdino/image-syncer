@@ -14,6 +14,7 @@ var (
 	procNum, retries int
 
 	osFilterList, archFilterList []string
+	days                         int
 )
 
 // RootCmd describes "image-syncer" command
@@ -31,7 +32,7 @@ var RootCmd = &cobra.Command{
 		if err != nil {
 			return fmt.Errorf("init sync client error: %v", err)
 		}
-
+		client.SetDays(days)
 		client.Run()
 		return nil
 	},
@@ -50,6 +51,7 @@ func init() {
 	RootCmd.PersistentFlags().IntVarP(&retries, "retries", "r", 2, "times to retry failed task")
 	RootCmd.PersistentFlags().StringArrayVar(&osFilterList, "os", []string{}, "os list to filter source tags, not works for docker v2 schema1 media")
 	RootCmd.PersistentFlags().StringArrayVar(&archFilterList, "arch", []string{}, "architecture list to filter source tags")
+	RootCmd.PersistentFlags().IntVarP(&days, "days", "d", 180, "days before synchronization, default 180")
 }
 
 // Execute executes the RootCmd
