@@ -1,11 +1,14 @@
 package docker
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
 	"net/url"
+	"strconv"
 	"strings"
+	"time"
 
 	"github.com/containers/image/v5/docker/reference"
 	"github.com/containers/image/v5/image"
@@ -102,4 +105,101 @@ func GetRepositoryTags(ctx context.Context, sys *types.SystemContext, ref types.
 		}
 	}
 	return tags, nil
+}
+
+func GetRepositoryTagsAfterDate(ctx context.Context, sys *types.SystemContext, ref types.ImageReference, date time.Time) ([]string, error) {
+	dr, ok := ref.(dockerReference)
+	if !ok {
+		return nil, errors.Errorf("ref must be a dockerReference")
+	}
+
+	path := fmt.Sprintf(tagsPath, reference.Path(dr.ref))
+	client, err := newDockerClientFromRef(sys, dr, false, "pull")
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to create client")
+	}
+
+	tags := make([]string, 0)
+
+	mapUpdatedTime := make(map[string]time.Time)
+
+	for {
+		res, err := client.makeRequest(ctx, "GET", path, nil, nil, v2Auth, nil)
+		if err != nil {
+			return nil, err
+		}
+		defer res.Body.Close()
+		if err := httpResponseToError(res, "Error fetching tags list"); err != nil {
+			return nil, err
+		}
+
+		buf := new(bytes.Buffer)
+		buf.ReadFrom(res.Body)
+		newStr := buf.String()
+		fmt.Println(newStr)
+
+		var tagsHolder struct {
+			Tags     []string
+			Manifest map[string]struct {
+				Tag            []string
+				TimeCreatedMs  string
+				TimeUploadedMs string
+			}
+		}
+		if err = json.NewDecoder(buf).Decode(&tagsHolder); err != nil {
+			return nil, err
+		}
+
+		// Process manifest
+
+		for _, manifest := range tagsHolder.Manifest {
+			timeUploadedMs := manifest.TimeUploadedMs
+			if timeUploadedMs != "" {
+				i, err := strconv.ParseInt(timeUploadedMs, 10, 64)
+				if err != nil {
+					fmt.Println("failed to parse timeUploadedMs %s", timeUploadedMs)
+				} else {
+					updatedTime := time.Unix(0, i*int64(time.Millisecond))
+					for _, tag := range manifest.Tag {
+						mapUpdatedTime[tag] = updatedTime
+						fmt.Printf("tag %s updated time %s\n", tag, updatedTime.Format(time.RFC3339))
+					}
+				}
+			}
+		}
+
+		tags = append(tags, tagsHolder.Tags...)
+
+		link := res.Header.Get("Link")
+		if link == "" {
+			break
+		}
+
+		linkURLStr := strings.Trim(strings.Split(link, ";")[0], "<>")
+		linkURL, err := url.Parse(linkURLStr)
+		if err != nil {
+			return tags, err
+		}
+
+		// can be relative or absolute, but we only want the path (and I
+		// guess we're in trouble if it forwards to a new place...)
+		path = linkURL.Path
+		if linkURL.RawQuery != "" {
+			path += "?"
+			path += linkURL.RawQuery
+		}
+	}
+
+	tagsResult := make([]string, 0)
+
+	for _, tag := range tags {
+		updatedTime, ok := mapUpdatedTime[tag]
+		if !ok || updatedTime.After(date) {
+			tagsResult = append(tagsResult, tag)
+		} else {
+			fmt.Println("Ignore tag ", tag)
+		}
+	}
+
+	return tagsResult, nil
 }
