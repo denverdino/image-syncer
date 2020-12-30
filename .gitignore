@@ -4,3 +4,5 @@ records
 .vscode
 *.log
 *.conf
+auth.json
+images.json
