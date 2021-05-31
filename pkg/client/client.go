@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"strings"
 	sync2 "sync"
+	"time"
 
 	"github.com/AliyunContainerService/image-syncer/pkg/sync"
 	"github.com/AliyunContainerService/image-syncer/pkg/tools"
@@ -34,6 +35,8 @@ type Client struct {
 	urlPairListChan            chan int
 	failedTaskListChan         chan int
 	failedTaskGenerateListChan chan int
+
+	dateFilter *time.Time
 }
 
 // URLPair is a pair of source and destination url
@@ -65,6 +68,13 @@ func NewSyncClient(configFile, authFile, imageFile, logFile string, routineNum, 
 		failedTaskListChan:         make(chan int, 1),
 		failedTaskGenerateListChan: make(chan int, 1),
 	}, nil
+}
+
+func (c *Client) SetDays(days int) {
+	if days > 0 {
+		d := time.Now().AddDate(0, 0, -days)
+		c.dateFilter = &d
+	}
 }
 
 // Run is main function of a synchronization client
@@ -232,7 +242,7 @@ func (c *Client) GenerateSyncTask(source string, destination string) ([]*URLPair
 		}
 
 		// get all tags of this source repo
-		tags, err := imageSource.GetSourceRepoTags()
+		tags, err := imageSource.GetSourceRepoTags(c.dateFilter)
 		if err != nil {
 			return nil, fmt.Errorf("get tags failed from %s error: %v", sourceURL.GetURL(), err)
 		}

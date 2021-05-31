@@ -12,6 +12,8 @@ var (
 	logPath, configFile, authFile, imageFile, defaultRegistry, defaultNamespace string
 
 	procNum, retries int
+
+	days int
 )
 
 // RootCmd describes "image-syncer" command
@@ -28,7 +30,7 @@ var RootCmd = &cobra.Command{
 		if err != nil {
 			return fmt.Errorf("init sync client error: %v", err)
 		}
-
+		client.SetDays(days)
 		client.Run()
 		return nil
 	},
@@ -46,6 +48,7 @@ func init() {
 		"default destinate namespace when destinate namespace is not given in the config file, can also be set with DEFAULT_NAMESPACE environment value")
 	RootCmd.PersistentFlags().IntVarP(&procNum, "proc", "p", 5, "numbers of working goroutines")
 	RootCmd.PersistentFlags().IntVarP(&retries, "retries", "r", 2, "times to retry failed task")
+	RootCmd.PersistentFlags().IntVarP(&days, "days", "d", 180, "days before synchronization, default 180")
 }
 
 // Execute executes the RootCmd

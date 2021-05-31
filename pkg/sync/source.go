@@ -143,8 +143,10 @@ func (i *ImageSource) GetTag() string {
 }
 
 // GetSourceRepoTags gets all the tags of a repository which ImageSource belongs to
-func (i *ImageSource) GetSourceRepoTags() ([]string, error) {
-	//return docker.GetRepositoryTags(i.ctx, i.sysctx, i.sourceRef)
-	date := time.Now().AddDate(0, 0, -180)
-	return docker.GetRepositoryTagsAfterDate(i.ctx, i.sysctx, i.sourceRef, date)
+func (i *ImageSource) GetSourceRepoTags(dateFilter *time.Time) ([]string, error) {
+	if dateFilter == nil {
+		return docker.GetRepositoryTags(i.ctx, i.sysctx, i.sourceRef)
+	} else {
+		return docker.GetRepositoryTagsAfterDate(i.ctx, i.sysctx, i.sourceRef, *dateFilter)
+	}
 }
