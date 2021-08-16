@@ -112,8 +112,6 @@ func GetRepositoryTagsAfterDate(ctx context.Context, sys *types.SystemContext, r
 	if !ok {
 		return nil, errors.Errorf("ref must be a dockerReference")
 	}
-
-	path := fmt.Sprintf(tagsPath, reference.Path(dr.ref))
 	client, err := newDockerClientFromRef(sys, dr, false, "pull")
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to create client")
@@ -123,70 +121,122 @@ func GetRepositoryTagsAfterDate(ctx context.Context, sys *types.SystemContext, r
 
 	mapUpdatedTime := make(map[string]time.Time)
 
-	for {
-		res, err := client.makeRequest(ctx, "GET", path, nil, nil, v2Auth, nil)
-		if err != nil {
-			return nil, err
-		}
-		defer res.Body.Close()
-		if err := httpResponseToError(res, "Error fetching tags list"); err != nil {
-			return nil, err
-		}
-
-		buf := new(bytes.Buffer)
-		buf.ReadFrom(res.Body)
-		newStr := buf.String()
-		fmt.Println(newStr)
-
-		var tagsHolder struct {
-			Tags     []string
-			Manifest map[string]struct {
-				Tag            []string
-				TimeCreatedMs  string
-				TimeUploadedMs string
+	if client.registry == "registry.hub.docker.com" {
+		repositoryPath := fmt.Sprintf("/v2/repositories/%s/tags?page_size=100", reference.Path(dr.ref))
+		for {
+			res, err := client.makeRequest(ctx, "GET", repositoryPath, nil, nil, noAuth, nil)
+			if err != nil {
+				return nil, err
 			}
-		}
-		if err = json.NewDecoder(buf).Decode(&tagsHolder); err != nil {
-			return nil, err
-		}
+			defer res.Body.Close()
+			if err := httpResponseToError(res, "Error fetching tags list"); err != nil {
+				return nil, err
+			}
+			buf := new(bytes.Buffer)
+			buf.ReadFrom(res.Body)
+			newStr := buf.String()
+			fmt.Println(newStr)
+			var tagsHolder struct {
+				Next     string `json:"next,omitempty"`
+				Previous string `json:"previous,omitempty"`
+				Results  []struct {
+					Name        string `json:"name,omitempty"`
+					LastUpdated string `json:"last_updated,omitempty"`
+				} `json:"results,omitempty"`
+			}
+			if err = json.NewDecoder(buf).Decode(&tagsHolder); err != nil {
+				return nil, err
+			}
 
-		// Process manifest
+			// Process manifest
 
-		for _, manifest := range tagsHolder.Manifest {
-			timeUploadedMs := manifest.TimeUploadedMs
-			if timeUploadedMs != "" {
-				i, err := strconv.ParseInt(timeUploadedMs, 10, 64)
-				if err != nil {
-					fmt.Println("failed to parse timeUploadedMs %s", timeUploadedMs)
-				} else {
-					updatedTime := time.Unix(0, i*int64(time.Millisecond))
-					for _, tag := range manifest.Tag {
-						mapUpdatedTime[tag] = updatedTime
-						fmt.Printf("tag %s updated time %s\n", tag, updatedTime.Format(time.RFC3339))
+			for _, manifest := range tagsHolder.Results {
+				lastUpdated := manifest.LastUpdated
+				tag := manifest.Name
+				if len(lastUpdated) > 0 {
+					t, err := time.Parse(time.RFC3339, lastUpdated)
+					if err != nil {
+						return nil, err
+					}
+					mapUpdatedTime[tag] = t
+				}
+				tags = append(tags, tag)
+			}
+
+			link := tagsHolder.Next
+			if link == "" {
+				break
+			}
+
+			repositoryPath = link[len("https://registry.hub.docker.com"):]
+		}
+	} else {
+		path := fmt.Sprintf(tagsPath, reference.Path(dr.ref))
+		for {
+			res, err := client.makeRequest(ctx, "GET", path, nil, nil, v2Auth, nil)
+			if err != nil {
+				return nil, err
+			}
+			defer res.Body.Close()
+			if err := httpResponseToError(res, "Error fetching tags list"); err != nil {
+				return nil, err
+			}
+
+			buf := new(bytes.Buffer)
+			buf.ReadFrom(res.Body)
+			newStr := buf.String()
+			fmt.Println(newStr)
+
+			var tagsHolder struct {
+				Tags     []string
+				Manifest map[string]struct {
+					Tag            []string
+					TimeCreatedMs  string
+					TimeUploadedMs string
+				}
+			}
+			if err = json.NewDecoder(buf).Decode(&tagsHolder); err != nil {
+				return nil, err
+			}
+
+			// Process manifest
+
+			for _, manifest := range tagsHolder.Manifest {
+				timeUploadedMs := manifest.TimeUploadedMs
+				if timeUploadedMs != "" {
+					i, err := strconv.ParseInt(timeUploadedMs, 10, 64)
+					if err != nil {
+						fmt.Println("failed to parse timeUploadedMs %s", timeUploadedMs)
+					} else {
+						updatedTime := time.Unix(0, i*int64(time.Millisecond))
+						for _, tag := range manifest.Tag {
+							mapUpdatedTime[tag] = updatedTime
+							fmt.Printf("tag %s updated time %s\n", tag, updatedTime.Format(time.RFC3339))
+						}
 					}
 				}
 			}
-		}
 
-		tags = append(tags, tagsHolder.Tags...)
+			tags = append(tags, tagsHolder.Tags...)
 
-		link := res.Header.Get("Link")
-		if link == "" {
-			break
-		}
+			link := res.Header.Get("Link")
+			if link == "" {
+				break
+			}
 
-		linkURLStr := strings.Trim(strings.Split(link, ";")[0], "<>")
-		linkURL, err := url.Parse(linkURLStr)
-		if err != nil {
-			return tags, err
-		}
+			linkURLStr := strings.Trim(strings.Split(link, ";")[0], "<>")
+			linkURL, err := url.Parse(linkURLStr)
+			if err != nil {
+				return tags, err
+			}
 
-		// can be relative or absolute, but we only want the path (and I
-		// guess we're in trouble if it forwards to a new place...)
-		path = linkURL.Path
-		if linkURL.RawQuery != "" {
-			path += "?"
-			path += linkURL.RawQuery
+			// can be relative or absolute, but we only want the path (and I
+			// guess we're in trouble if it forwards to a new place...)
+			path = linkURL.Path
+			if linkURL.RawQuery != "" {
+				path += "?"
+				path += linkURL.RawQuery
+			}
 		}
 	}
 
