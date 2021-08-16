@@ -158,6 +158,7 @@ func GetRepositoryTagsAfterDate(ctx context.Context, sys *types.SystemContext, r
 					if err != nil {
 						return nil, err
 					}
+					fmt.Printf("tag %s updated time %s\n", tag, t.Format(time.RFC3339))
 					mapUpdatedTime[tag] = t
 				}
 				tags = append(tags, tag)
@@ -169,6 +170,60 @@ func GetRepositoryTagsAfterDate(ctx context.Context, sys *types.SystemContext, r
 			}
 
 			repositoryPath = link[len("https://registry.hub.docker.com"):]
+		}
+	} else if client.registry == "quay.io" {
+		page := 1
+		for {
+			repositoryPath := fmt.Sprintf("/api/v1/repository/%s/tag/?onlyActiveTags=true&limit=100&page=%d", reference.Path(dr.ref), page)
+			fmt.Println(repositoryPath)
+			res, err := client.makeRequest(ctx, "GET", repositoryPath, nil, nil, noAuth, nil)
+			if err != nil {
+				return nil, err
+			}
+			defer res.Body.Close()
+			if err := httpResponseToError(res, "Error fetching tags list"); err != nil {
+				return nil, err
+			}
+			buf := new(bytes.Buffer)
+			buf.ReadFrom(res.Body)
+			newStr := buf.String()
+			fmt.Println(newStr)
+			var tagsHolder struct {
+				HasAdditional bool `json:"has_additional,omitempty"`
+				Page          int  `json:"page,omitempty"`
+				Tags          []struct {
+					Name         string `json:"name,omitempty"`
+					LastModified string `json:"last_modified,omitempty"`
+					Expiration   string `json:"expiration,omitempty"`
+				} `json:"tags,omitempty"`
+			}
+			if err = json.NewDecoder(buf).Decode(&tagsHolder); err != nil {
+				return nil, err
+			}
+
+			// Process manifest
+			for _, manifest := range tagsHolder.Tags {
+				tag := manifest.Name
+				LastModified := manifest.LastModified
+				if len(manifest.Expiration) > 0 {
+					//Ignore expired tag
+					continue
+				}
+				if len(LastModified) > 0 {
+					t, err := time.Parse(time.RFC1123Z, LastModified)
+					if err != nil {
+						return nil, err
+					}
+					fmt.Printf("tag %s updated time %s\n", tag, t.Format(time.RFC3339))
+					mapUpdatedTime[tag] = t
+				}
+				tags = append(tags, tag)
+			}
+			if tagsHolder.HasAdditional {
+				page = tagsHolder.Page+1
+			} else {
+				break
+			}
 		}
 	} else {
 		path := fmt.Sprintf(tagsPath, reference.Path(dr.ref))
