@@ -54,6 +54,7 @@ func NewSyncConfig(configFile, authFilePath, imageFilePath, defaultDestRegistry,
 			if err := openAndDecode(authFilePath, &config.AuthList); err != nil {
 				return nil, fmt.Errorf("decode auth file %v error: %v", authFilePath, err)
 			}
+			config.AuthList = expandEnv(config.AuthList)
 		}
 
 		if err := openAndDecode(imageFilePath, &config.ImageList); err != nil {
@@ -65,6 +66,24 @@ func NewSyncConfig(configFile, authFilePath, imageFilePath, defaultDestRegistry,
 	config.defaultDestRegistry = defaultDestRegistry
 
 	return &config, nil
+}
+
+func expandEnv(authMap map[string]Auth) map[string]Auth {
+
+	result := make(map[string]Auth)
+
+	for registry, auth := range authMap {
+		pwd := os.ExpandEnv(auth.Password)
+		name := os.ExpandEnv(auth.Username)
+		newAuth := Auth{
+			Username: name,
+			Password: pwd,
+			Insecure: auth.Insecure,
+		}
+		result[registry] = newAuth
+	}
+
+	return result
 }
 
 // Open json file and decode into target interface
