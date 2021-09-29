@@ -20,3 +20,12 @@ jobs:
 
     - name: Build
       run: make
+
+    - name: Build
+      env: 
+        ACR_USER: ${{ secrets.ACR_USER }}
+        ACR_PASSWORD: ${{ secrets.ACR_PASSWORD }}
+        DOCKER_HUB_USER: ${{ secrets.DOCKER_HUB_USER }}
+        DOCKER_HUB_PASSWORD: ${{ secrets.DOCKER_HUB_PASSWORD }}
+
+      run: ./image-syncer --auth=auth.json --images=images.json --days=5 --proc=1
