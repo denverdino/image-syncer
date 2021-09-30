@@ -222,13 +222,13 @@ func (c *Client) GenerateSyncTask(source string, destination string) ([]*URLPair
 	var imageDestination *sync.ImageDestination
 
 	if auth, exist := c.config.GetAuth(sourceURL.GetRegistry(), sourceURL.GetNamespace()); exist {
-		c.logger.Infof("Find auth information for %v, username: %v", sourceURL.GetURL(), auth.Username)
+		c.logger.Debugf("Find auth information for %v, username: %v", sourceURL.GetURL(), auth.Username)
 		imageSource, err = sync.NewImageSource(sourceURL.GetRegistry(), sourceURL.GetRepoWithNamespace(), sourceURL.GetTag(), auth.Username, auth.Password, auth.Insecure)
 		if err != nil {
 			return nil, fmt.Errorf("generate %s image source error: %v", sourceURL.GetURL(), err)
 		}
 	} else {
-		c.logger.Infof("Cannot find auth information for %v, pull actions will be anonymous", sourceURL.GetURL())
+		c.logger.Debugf("Cannot find auth information for %v, pull actions will be anonymous", sourceURL.GetURL())
 		imageSource, err = sync.NewImageSource(sourceURL.GetRegistry(), sourceURL.GetRepoWithNamespace(), sourceURL.GetTag(), "", "", false)
 		if err != nil {
 			return nil, fmt.Errorf("generate %s image source error: %v", sourceURL.GetURL(), err)
@@ -280,7 +280,7 @@ func (c *Client) GenerateSyncTask(source string, destination string) ([]*URLPair
 	}
 
 	c.PutATask(sync.NewTask(imageSource, imageDestination, c.logger))
-	c.logger.Infof("Generate a task for %s to %s", sourceURL.GetURL(), destURL.GetURL())
+	c.logger.Debugf("Generate a task for %s to %s", sourceURL.GetURL(), destURL.GetURL())
 	return nil, nil
 }
 

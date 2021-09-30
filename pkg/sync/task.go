@@ -43,7 +43,7 @@ func (t *Task) Run() error {
 	if err != nil {
 		return t.Errorf("Failed to get manifest from %s/%s:%s error: %v", t.source.GetRegistry(), t.source.GetRepository(), t.source.GetTag(), err)
 	}
-	t.Infof("Get manifest from %s/%s:%s", t.source.GetRegistry(), t.source.GetRepository(), t.source.GetTag())
+	t.Debugf("Get manifest from %s/%s:%s", t.source.GetRegistry(), t.source.GetRepository(), t.source.GetTag())
 
 	blobInfos, err := t.source.GetBlobInfos(manifestByte, manifestType)
 	if err != nil {
@@ -63,17 +63,17 @@ func (t *Task) Run() error {
 			if err != nil {
 				return t.Errorf("Get blob %s(%v) from %s/%s:%s failed: %v", b.Digest, size, t.source.GetRegistry(), t.source.GetRepository(), t.source.GetTag(), err)
 			}
-			t.Infof("Get a blob %s(%v) from %s/%s:%s success", b.Digest, size, t.source.GetRegistry(), t.source.GetRepository(), t.source.GetTag())
+			t.Debugf("Get a blob %s(%v) from %s/%s:%s success", b.Digest, size, t.source.GetRegistry(), t.source.GetRepository(), t.source.GetTag())
 
 			b.Size = size
 			// push a blob to destination
 			if err := t.destination.PutABlob(blob, b); err != nil {
 				return t.Errorf("Put blob %s(%v) to %s/%s:%s failed: %v", b.Digest, b.Size, t.destination.GetRegistry(), t.destination.GetRepository(), t.destination.GetTag(), err)
 			}
-			t.Infof("Put blob %s(%v) to %s/%s:%s success", b.Digest, b.Size, t.destination.GetRegistry(), t.destination.GetRepository(), t.destination.GetTag())
+			t.Debugf("Put blob %s(%v) to %s/%s:%s success", b.Digest, b.Size, t.destination.GetRegistry(), t.destination.GetRepository(), t.destination.GetTag())
 		} else {
 			// print the log of ignored blob
-			t.Infof("Blob %s(%v) has been pushed to %s, will not be pushed", b.Digest, b.Size, t.destination.GetRegistry()+"/"+t.destination.GetRepository())
+			t.Debugf("Blob %s(%v) has been pushed to %s, will not be pushed", b.Digest, b.Size, t.destination.GetRegistry()+"/"+t.destination.GetRepository())
 		}
 
 	}
@@ -136,4 +136,9 @@ func (t *Task) Errorf(format string, args ...interface{}) error {
 // Infof logs info to logger
 func (t *Task) Infof(format string, args ...interface{}) {
 	t.logger.Infof(format, args...)
+}
+
+// Debugf logs info to logger
+func (t *Task) Debugf(format string, args ...interface{}) {
+	t.logger.Debugf(format, args...)
 }

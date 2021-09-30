@@ -14,6 +14,7 @@ import (
 	"github.com/containers/image/v5/image"
 	"github.com/containers/image/v5/types"
 	"github.com/pkg/errors"
+	"github.com/sirupsen/logrus"
 )
 
 // Image is a Docker-specific implementation of types.ImageCloser with a few extra methods
@@ -134,8 +135,6 @@ func GetRepositoryTagsAfterDate(ctx context.Context, sys *types.SystemContext, r
 			}
 			buf := new(bytes.Buffer)
 			buf.ReadFrom(res.Body)
-			newStr := buf.String()
-			fmt.Println(newStr)
 			var tagsHolder struct {
 				Next     string `json:"next,omitempty"`
 				Previous string `json:"previous,omitempty"`
@@ -158,7 +157,7 @@ func GetRepositoryTagsAfterDate(ctx context.Context, sys *types.SystemContext, r
 					if err != nil {
 						return nil, err
 					}
-					fmt.Printf("tag %s updated time %s\n", tag, t.Format(time.RFC3339))
+					logrus.Debugf("tag %s updated time %s\n", tag, t.Format(time.RFC3339))
 					mapUpdatedTime[tag] = t
 				}
 				tags = append(tags, tag)
@@ -175,7 +174,7 @@ func GetRepositoryTagsAfterDate(ctx context.Context, sys *types.SystemContext, r
 		page := 1
 		for {
 			repositoryPath := fmt.Sprintf("/api/v1/repository/%s/tag/?onlyActiveTags=true&limit=100&page=%d", reference.Path(dr.ref), page)
-			fmt.Println(repositoryPath)
+			logrus.Debugf("GET %s", repositoryPath)
 			res, err := client.makeRequest(ctx, "GET", repositoryPath, nil, nil, noAuth, nil)
 			if err != nil {
 				return nil, err
@@ -186,8 +185,6 @@ func GetRepositoryTagsAfterDate(ctx context.Context, sys *types.SystemContext, r
 			}
 			buf := new(bytes.Buffer)
 			buf.ReadFrom(res.Body)
-			newStr := buf.String()
-			fmt.Println(newStr)
 			var tagsHolder struct {
 				HasAdditional bool `json:"has_additional,omitempty"`
 				Page          int  `json:"page,omitempty"`
@@ -214,13 +211,13 @@ func GetRepositoryTagsAfterDate(ctx context.Context, sys *types.SystemContext, r
 					if err != nil {
 						return nil, err
 					}
-					fmt.Printf("tag %s updated time %s\n", tag, t.Format(time.RFC3339))
+					logrus.Debugf("tag %s updated time %s\n", tag, t.Format(time.RFC3339))
 					mapUpdatedTime[tag] = t
 				}
 				tags = append(tags, tag)
 			}
 			if tagsHolder.HasAdditional {
-				page = tagsHolder.Page+1
+				page = tagsHolder.Page + 1
 			} else {
 				break
 			}
@@ -239,9 +236,6 @@ func GetRepositoryTagsAfterDate(ctx context.Context, sys *types.SystemContext, r
 
 			buf := new(bytes.Buffer)
 			buf.ReadFrom(res.Body)
-			newStr := buf.String()
-			fmt.Println(newStr)
-
 			var tagsHolder struct {
 				Tags     []string
 				Manifest map[string]struct {
@@ -261,12 +255,12 @@ func GetRepositoryTagsAfterDate(ctx context.Context, sys *types.SystemContext, r
 				if timeUploadedMs != "" {
 					i, err := strconv.ParseInt(timeUploadedMs, 10, 64)
 					if err != nil {
-						fmt.Println("failed to parse timeUploadedMs %s", timeUploadedMs)
+						logrus.Warnf("failed to parse timeUploadedMs %s", timeUploadedMs)
 					} else {
 						updatedTime := time.Unix(0, i*int64(time.Millisecond))
 						for _, tag := range manifest.Tag {
 							mapUpdatedTime[tag] = updatedTime
-							fmt.Printf("tag %s updated time %s\n", tag, updatedTime.Format(time.RFC3339))
+							logrus.Debugf("tag %s updated time %s\n", tag, updatedTime.Format(time.RFC3339))
 						}
 					}
 				}
@@ -302,7 +296,7 @@ func GetRepositoryTagsAfterDate(ctx context.Context, sys *types.SystemContext, r
 		if !ok || updatedTime.After(date) {
 			tagsResult = append(tagsResult, tag)
 		} else {
-			fmt.Println("Ignore tag ", tag)
+			logrus.Debugf("Ignore tag %s", tag)
 		}
 	}
 
