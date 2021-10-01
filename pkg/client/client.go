@@ -266,13 +266,13 @@ func (c *Client) GenerateSyncTask(source string, destination string) ([]*URLPair
 	}
 
 	if auth, exist := c.config.GetAuth(destURL.GetRegistry(), destURL.GetNamespace()); exist {
-		c.logger.Infof("Find auth information for %v, username: %v", destURL.GetURL(), auth.Username)
+		c.logger.Debugf("Find auth information for %v, username: %v", destURL.GetURL(), auth.Username)
 		imageDestination, err = sync.NewImageDestination(destURL.GetRegistry(), destURL.GetRepoWithNamespace(), destTag, auth.Username, auth.Password, auth.Insecure)
 		if err != nil {
 			return nil, fmt.Errorf("generate %s image destination error: %v", sourceURL.GetURL(), err)
 		}
 	} else {
-		c.logger.Infof("Cannot find auth information for %v, push actions will be anonymous", destURL.GetURL())
+		c.logger.Debugf("Cannot find auth information for %v, push actions will be anonymous", destURL.GetURL())
 		imageDestination, err = sync.NewImageDestination(destURL.GetRegistry(), destURL.GetRepoWithNamespace(), destTag, "", "", false)
 		if err != nil {
 			return nil, fmt.Errorf("generate %s image destination error: %v", destURL.GetURL(), err)
