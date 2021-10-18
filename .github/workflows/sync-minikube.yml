@@ -11,6 +11,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v2
+      with:
+        repository: denverdino/image-syncer
+        path: ./image-syncer
 
     - name: Set up Go
       uses: actions/setup-go@v2
@@ -18,13 +21,13 @@ jobs:
         go-version: 1.17
 
     - name: Build
-      run: make
+      run: cd image-syncer && make
 
-    - name: Synchronize images
+    - name: Synchronize images to Alibaba Cloud Container Registry Service
       env: 
         ACR_USER: ${{ secrets.ACR_USER }}
         ACR_PASSWORD: ${{ secrets.ACR_PASSWORD }}
         DOCKER_HUB_USER: ${{ secrets.DOCKER_HUB_USER }}
         DOCKER_HUB_PASSWORD: ${{ secrets.DOCKER_HUB_PASSWORD }}
 
-      run: ./image-syncer --auth=auth.json --images=images.json --days=2 --proc=2
+      run: image-syncer/image-syncer --auth=auth.json --images=images.json --days=2 --proc=2
