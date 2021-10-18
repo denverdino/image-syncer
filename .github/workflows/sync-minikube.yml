@@ -30,4 +30,4 @@ jobs:
         DOCKER_HUB_USER: ${{ secrets.DOCKER_HUB_USER }}
         DOCKER_HUB_PASSWORD: ${{ secrets.DOCKER_HUB_PASSWORD }}
 
-      run: image-syncer/image-syncer --auth=auth.json --images=images.json --days=2 --proc=2
+      run: cd image-syncer && ./image-syncer --auth=auth.json --images=images.json --days=2 --proc=2
