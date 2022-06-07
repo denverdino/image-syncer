@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/containers/image/v5/manifest"
+	v1 "github.com/opencontainers/image-spec/specs-go/v1"
 )
 
 // ManifestHandler expends the ability of handling manifest list in schema2, but it's not finished yet
@@ -46,6 +47,15 @@ func ManifestHandler(m []byte, t string, i *ImageSource) ([]manifest.Manifest, e
 
 			manifestInfoSlice = append(manifestInfoSlice, platformSpecManifest...)
 		}
+		return manifestInfoSlice, nil
+	} else if t == manifest.DockerV2ListMediaType {
+
+	} else if t == v1.MediaTypeImageManifest {
+		manifestInfo, err := manifest.OCI1FromManifest(m)
+		if err != nil {
+			return nil, err
+		}
+		manifestInfoSlice = append(manifestInfoSlice, manifestInfo)
 		return manifestInfoSlice, nil
 	}
 
