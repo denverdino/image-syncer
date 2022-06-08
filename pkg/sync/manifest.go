@@ -48,8 +48,6 @@ func ManifestHandler(m []byte, t string, i *ImageSource) ([]manifest.Manifest, e
 			manifestInfoSlice = append(manifestInfoSlice, platformSpecManifest...)
 		}
 		return manifestInfoSlice, nil
-	} else if t == manifest.DockerV2ListMediaType {
-
 	} else if t == v1.MediaTypeImageManifest {
 		manifestInfo, err := manifest.OCI1FromManifest(m)
 		if err != nil {
